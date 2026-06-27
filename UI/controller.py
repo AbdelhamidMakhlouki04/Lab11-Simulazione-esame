@@ -9,13 +9,17 @@ class Controller:
         self._model = model
 
     def fillDDGenre(self):
-        pass
+        generi=self._model.get_all_genre()
+        self._view.set_ddGenre(generi)
 
     def handleCreaGrafo(self, e):
-        pass
+        genere=self._view._ddGenre.value
+        self._model.get_vertici(genere)
+        self._model.get_archi(genere)
 
-    def handleCreaGrafo(self,e):
-        pass
+        self._model.crea_grafo()
+        vertici,archi=self._model.get_num_grafo()
+        print(vertici,archi)
 
     def handleCammino(self,e):
         pass

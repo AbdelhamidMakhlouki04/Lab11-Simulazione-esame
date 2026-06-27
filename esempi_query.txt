@@ -1,0 +1,124 @@
+Archi diretti (JOIN tra due tabelle)
+1. Cliente → Fattura — trova i clienti e le loro fatture (arco Customer → Invoice tramite CustomerId)
+sqlSELECT c.CustomerId, c.FirstName || ' ' || c.LastName AS Cliente,
+       i.InvoiceId, i.Total
+FROM Customer c
+JOIN Invoice i ON c.CustomerId = i.CustomerId
+ORDER BY c.CustomerId;
+
+2. Fattura → Riga di fattura — esplora l'arco Invoice → InvoiceLine, utile per capire le relazioni 1:N
+sqlSELECT i.InvoiceId, i.InvoiceDate,
+       COUNT(il.InvoiceLineId) AS NumeroRighe,
+       SUM(il.UnitPrice * il.Quantity) AS TotaleRighe
+FROM Invoice i
+JOIN InvoiceLine il ON i.InvoiceId = il.InvoiceId
+GROUP BY i.InvoiceId
+ORDER BY NumeroRighe DESC;
+
+3. Track → Album → Artist — percorso lungo 2 archi nella catena musicale
+sqlSELECT t.TrackId, t.Name AS Brano,
+       al.Title AS Album,
+       ar.Name AS Artista
+FROM Track t
+JOIN Album al ON t.AlbumId = al.AlbumId
+JOIN Artist ar ON al.ArtistId = ar.ArtistId
+ORDER BY ar.Name, al.Title;
+
+Archi con aggregazione
+4. Quante tracce per genere? — arco Track → Genre, con conteggio
+sqlSELECT g.Name AS Genere,
+       COUNT(t.TrackId) AS NumeroBrani
+FROM Genre g
+LEFT JOIN Track t ON g.GenreId = t.GenreId
+GROUP BY g.GenreId
+ORDER BY NumeroBrani DESC;
+
+5. Artisti senza album — archi mancanti (nodi isolati nel grafo)
+sqlSELECT ar.ArtistId, ar.Name AS Artista
+FROM Artist ar
+LEFT JOIN Album al ON ar.ArtistId = al.ArtistId
+WHERE al.AlbumId IS NULL;
+
+6. Tracce in più playlist — l'arco PlaylistTrack è una relazione N:N tra Playlist e Track
+sqlSELECT t.Name AS Brano,
+       COUNT(pt.PlaylistId) AS NumeroPlaylist
+FROM Track t
+JOIN PlaylistTrack pt ON t.TrackId = pt.TrackId
+GROUP BY t.TrackId
+HAVING COUNT(pt.PlaylistId) > 1
+ORDER BY NumeroPlaylist DESC;
+
+Archi transitivi (catene di 3+ nodi)
+7. Cliente → Fattura → Brano acquistato — percorso completo dal cliente al brano
+sqlSELECT c.FirstName || ' ' || c.LastName AS Cliente,
+       t.Name AS Brano,
+       il.UnitPrice,
+       il.Quantity
+FROM Customer c
+JOIN Invoice i    ON c.CustomerId = i.CustomerId
+JOIN InvoiceLine il ON i.InvoiceId = il.InvoiceId
+JOIN Track t      ON il.TrackId = t.TrackId
+ORDER BY Cliente, Brano;
+
+8. Dipendente → Cliente → Fattura — l'arco Employee → Customer (SupportRepId) concatenato fino alle fatture
+sqlSELECT e.FirstName || ' ' || e.LastName AS Agente,
+       COUNT(DISTINCT c.CustomerId)   AS NumClienti,
+       COUNT(i.InvoiceId)             AS NumFatture,
+       ROUND(SUM(i.Total), 2)         AS TotaleVendite
+FROM Employee e
+LEFT JOIN Customer c ON e.EmployeeId = c.SupportRepId
+LEFT JOIN Invoice i  ON c.CustomerId = i.CustomerId
+GROUP BY e.EmployeeId
+ORDER BY TotaleVendite DESC;
+
+Self-join (arco riflessivo)
+9. Employee → Employee (ReportsTo) — l'unico arco che collega una tabella a se stessa
+sqlSELECT e.FirstName || ' ' || e.LastName AS Dipendente,
+       m.FirstName || ' ' || m.LastName AS Responsabile
+FROM Employee e
+LEFT JOIN Employee m ON e.ReportsTo = m.EmployeeId
+ORDER BY Responsabile, Dipendente;
+
+10. Gerarchia completa dei dipendenti — percorso ricorsivo sul self-join (SQLite/PostgreSQL con CTE ricorsiva)
+sqlWITH RECURSIVE Gerarchia AS (
+    SELECT EmployeeId,
+           FirstName || ' ' || LastName AS Nome,
+           ReportsTo,
+           0 AS Livello
+    FROM Employee
+    WHERE ReportsTo IS NULL   -- radice della gerarchia
+
+    UNION ALL
+
+    SELECT e.EmployeeId,
+           e.FirstName || ' ' || e.LastName,
+           e.ReportsTo,
+           g.Livello + 1
+    FROM Employee e
+    JOIN Gerarchia g ON e.ReportsTo = g.EmployeeId
+)
+SELECT REPEAT('  ', Livello) || Nome AS Struttura, Livello
+FROM Gerarchia
+ORDER BY Livello, Nome;
+
+Archi "inversi" e nodi con alto grado
+11. Artisti con più album — grado uscente del nodo Artist nel grafo Artist → Album
+sqlSELECT ar.Name AS Artista,
+       COUNT(al.AlbumId) AS NumeroAlbum
+FROM Artist ar
+JOIN Album al ON ar.ArtistId = al.ArtistId
+GROUP BY ar.ArtistId
+ORDER BY NumeroAlbum DESC
+LIMIT 10;
+
+12. Brano più acquistato — nodo Track con il maggior numero di archi entranti da InvoiceLine
+sqlSELECT t.Name AS Brano,
+       ar.Name AS Artista,
+       COUNT(il.InvoiceLineId) AS Acquisti
+FROM Track t
+JOIN InvoiceLine il ON t.TrackId = il.TrackId
+JOIN Album al ON t.AlbumId = al.AlbumId
+JOIN Artist ar ON al.ArtistId = ar.ArtistId
+GROUP BY t.TrackId
+ORDER BY Acquisti DESC
+LIMIT 10;

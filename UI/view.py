@@ -17,6 +17,7 @@ class View(ft.UserControl):
         self.btn_hello = None
         self.txt_result = None
         self.txt_container = None
+        self._ddGenre = None
 
     def load_interface(self):
         # title
@@ -62,4 +63,11 @@ class View(ft.UserControl):
         self._page.update()
 
     def update_page(self):
+        self._page.update()
+
+    def set_ddGenre(self, generi):
+        self._ddGenre.options = []
+        for i in generi:
+            self._ddGenre.options.append(ft.dropdown.Option(key=i.genre_id, text=i.genre_name))
+
         self._page.update()
