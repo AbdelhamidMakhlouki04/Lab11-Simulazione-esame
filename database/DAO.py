@@ -76,7 +76,7 @@ class DAO():
         return result
 
     @staticmethod
-    def get_peso():
+    def get_peso(genere):
         cnx = DBConnect.get_connection()
         result = []
         if cnx is None:
@@ -87,10 +87,10 @@ class DAO():
                     SELECT DISTINCT a.ArtistId , SUM(il.quantity) AS tot
                     FROM artist a , album alb, track t , invoiceline il
                     WHERE  il.TrackId = t.TrackId AND t.AlbumId = alb.AlbumId AND 
-                    alb.ArtistId = a.ArtistId
+                    alb.ArtistId = a.ArtistId AND t.GenreId = %s
                     GROUP BY a.ArtistId
                     """
-            cursor.execute(query)
+            cursor.execute(query,(genere,))
             for row in cursor:
                 result.append(Peso(row["ArtistId"],row["tot"]))
             cursor.close()

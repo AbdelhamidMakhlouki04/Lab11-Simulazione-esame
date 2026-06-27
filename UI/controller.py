@@ -16,10 +16,27 @@ class Controller:
         genere=self._view._ddGenre.value
         self._model.get_vertici(genere)
         self._model.get_archi(genere)
+        self._model.get_peso(genere)
 
         self._model.crea_grafo()
         vertici,archi=self._model.get_num_grafo()
-        print(vertici,archi)
+
+        nome,score=self._model.get_maggior_influente()
+
+        top5=self._model.get_top_5()
+
+        self._view.txt_result.controls.append(
+            ft.Text(f"Grafo correttamente creato :\nNumero di nodi : {vertici}\nNumero di archi : {archi}")
+        )
+        self._view.txt_result.controls.append(
+            ft.Text(f"Artista più influente : {nome} con influenza : {score}\nTop 5 archi :")
+        )
+        for u, v, d in top5:
+            self._view.txt_result.controls.append(
+                ft.Text(f"{u} -> {v} : {d}")
+            )
+        self._view.update_page()
 
     def handleCammino(self,e):
-        pass
+
+
